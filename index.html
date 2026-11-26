@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BrewBros Café</title>
+    
+    <!-- Load Tailwind CSS for modern styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Load React and ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    
+    <!-- Load Babel to compile JSX in the browser -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Load Supabase Cloud Script -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-stone-50 text-stone-900 selection:bg-amber-200">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- SUPABASE CONFIGURATION ---
+        const SUPABASE_URL = "https://ptusubqxukarktyuicqu.supabase.co";
+        const SUPABASE_ANON_KEY = "sb_publishable_j0Z9MtLTl9EjxyfskBneXw_xlGRhHos";
+
+        let supabase = null;
+        try {
+            if (SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase) {
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            }
+        } catch (e) {
+            console.warn("Supabase initialization error:", e);
+        }
+
+        // --- SVG ICONS ---
+        const IconCoffee = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" y1="2" x2="6" y2="4"/><line x1="10" y1="2" x2="10" y2="4"/><line x1="14" y1="2" x2="14" y2="4"/></svg>
+        );
+        const IconShoppingBag = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        );
+        const IconHistory = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+        );
+        const IconPlus = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        );
+        const IconMinus = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        );
+        const IconTrash = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+        );
+        const IconChevronLeft = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="15 18 9 12 15 6"/></svg>
+        );
+        const IconCheck = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="20 6 9 17 4 12"/></svg>
+        );
+        const IconSettings = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+        );
+
+        // --- MOCK DATA ---
+        const INITIAL_PRODUCTS = [
+            { id: 1, name: 'Espresso', price: 120.00, emoji: '☕', category: 'Drinks', desc: 'Strong and bold classic espresso.' },
+            { id: 2, name: 'Cappuccino', price: 150.00, emoji: '☕', category: 'Drinks', desc: 'Espresso with steamed milk and a deep layer of foam.' },
+            { id: 3, name: 'Caramel Macchiato', price: 180.00, emoji: '🥤', category: 'Drinks', desc: 'Vanilla syrup, espresso, milk, and caramel drizzle.' },
+            { id: 4, name: 'Iced Latte', price: 160.00, emoji: '🧋', category: 'Drinks', desc: 'Chilled milk over ice, topped with espresso.' },
+            { id: 5, name: 'Butter Croissant', price: 95.00, emoji: '🥐', category: 'Food', desc: 'Flaky, buttery, and baked fresh daily.' },
+            { id: 6, name: 'Blueberry Muffin', price: 110.00, emoji: '🧁', category: 'Food', desc: 'Loaded with wild blueberries and topped with streusel.' },
+            { id: 7, name: 'Choco Chip Cookie', price: 75.00, emoji: '🍪', category: 'Food', desc: 'Warm, gooey chocolate chip cookie.' },
+            { id: 8, name: 'Avocado Toast', price: 220.00, emoji: '🥑', category: 'Food', desc: 'Smashed avocado on sourdough with chili flakes.' },
+        ];
+
+        function BrewBrosApp() {
+            const [currentView, setCurrentView] = useState('menu');
+            
+            // Initialize products from LocalStorage first so nothing ever disappears on reload
+            const [products, setProducts] = useState(() => {
+                const saved = localStorage.getItem('brewbros_products');
+                return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
+            });
+
+            const [cart, setCart] = useState([]);
+            
+            // Initialize order history from LocalStorage
+            const [orderHistory, setOrderHistory] = useState(() => {
+                const saved = localStorage.getItem('brewbros_orders');
+                return saved ? JSON.parse(saved) : [];
+            });
+
+            const [currentReceipt, setCurrentReceipt] = useState(null);
+            const [checkoutOrderType, setCheckoutOrderType] = useState('');
+            const [productToDelete, setProductToDelete] = useState(null);
+
+            // Sync with Supabase in background without overriding local storage wipeouts
+            useEffect(() => {
+                if (!supabase && window.supabase && SUPABASE_URL && SUPABASE_ANON_KEY) {
+                    try {
+                        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                    } catch (e) {
+                        console.warn("Supabase client init error", e);
+                    }
+                }
+                if (!supabase) return;
+
+                async function fetchCloudData() {
+                    try {
+                        const { data: prodData, error: prodErr } = await supabase.from('products').select('*');
+                        if (prodErr) console.error("Products fetch error:", prodErr);
+                        if (prodData && prodData.length > 0) {
+                            setProducts(prev => {
+                                const existingIds = new Set(prev.map(p => p.id));
+                                const newCloudItems = prodData.filter(p => !existingIds.has(p.id));
+                                const combined = [...newCloudItems, ...prev];
+                                localStorage.setItem('brewbros_products', JSON.stringify(combined));
+                                return combined;
+                            });
+                        }
+
+                        const { data: orderData, error: ordErr } = await supabase.from('orders').select('*');
+                        if (ordErr) console.error("Orders fetch error:", ordErr);
+                        if (orderData && orderData.length > 0) {
+                            orderData.sort((a, b) => new Date(b.date) - new Date(a.date));
+                            setOrderHistory(orderData);
+                            localStorage.setItem('brewbros_orders', JSON.stringify(orderData));
+                        }
+                    } catch (err) {
+                        console.error("Supabase sync error:", err);
+                    }
+                }
+                fetchCloudData();
+            }, []);
+
+            // --- CART LOGIC ---
+            const addToCart = (product) => {
+                setCart(prev => {
+                    const existing = prev.find(item => item.id === product.id);
+                    if (existing) {
+                        return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
+                    }
+                    return [...prev, { ...product, quantity: 1 }];
+                });
+            };
+
+            const updateQuantity = (id, delta) => {
+                setCart(prev => prev.map(item => item.id === id ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item));
+            };
+
+            const removeFromCart = (id) => setCart(prev => prev.filter(item => item.id !== id));
+            const getCartTotal = () => cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            const getCartItemCount = () => cart.reduce((sum, item) => sum + item.quantity, 0);
+
+            // --- ADMIN FUNCTIONS: ADD PRODUCT ---
+            const handleAddProduct = async (e) => {
+                e.preventDefault();
+                const form = new FormData(e.target);
+                const category = form.get('category');
+                
+                let defaultEmoji = '☕';
+                if (category === 'Food') defaultEmoji = '🥐';
+                if (category === 'Merchandise') defaultEmoji = '🛍️';
+
+                const newProd = {
+                    id: Date.now(),
+                    name: form.get('productName'),
+                    category: category,
+                    price: parseFloat(form.get('price')),
+                    desc: form.get('description'),
+                    imageUrl: form.get('imageUrl') || '',
+                    emoji: defaultEmoji
+                };
+                
+                const updated = [newProd, ...products];
+                setProducts(updated);
+                localStorage.setItem('brewbros_products', JSON.stringify(updated));
+
+                if (supabase) {
+                    try {
+                        const { error } = await supabase.from('products').insert([newProd]);
+                        if (error) {
+                            alert("Failed to save product to Supabase: " + error.message);
+                        }
+                    } catch (err) {
+                        console.error("Cloud insert exception:", err);
+                    }
+                }
+
+                setCurrentView('menu');
+            };
+
+            // --- ADMIN FUNCTIONS: DELETE PRODUCT ---
+            const confirmDeleteProduct = async () => {
+                if (productToDelete !== null) {
+                    const updated = products.filter(p => p.id !== productToDelete);
+                    setProducts(updated);
+                    localStorage.setItem('brewbros_products', JSON.stringify(updated));
+
+                    if (supabase) {
+                        try {
+                            const { error } = await supabase.from('products').delete().eq('id', productToDelete);
+                            if (error) alert("Failed to delete product from Supabase: " + error.message);
+                        } catch (err) {
+                            console.error("Cloud delete exception:", err);
+                        }
+                    }
+
+                    setProductToDelete(null);
+                }
+            };
+
+            // --- CHECKOUT FUNCTION ---
+            const handleCheckoutSubmit = async (e) => {
+                e.preventDefault();
+                const form = new FormData(e.target);
+                const orderId = 'BB-' + Math.random().toString(36).substr(2, 6).toUpperCase();
+                const newOrder = {
+                    id: orderId,
+                    date: new Date().toLocaleString(),
+                    customerName: form.get('customerName'),
+                    deliveryLocation: form.get('deliveryLocation'),
+                    paymentMethod: form.get('paymentMethod'),
+                    orderType: form.get('orderType'),
+                    items: cart,
+                    total: getCartTotal()
+                };
+
+                const updatedHistory = [newOrder, ...orderHistory];
+                setOrderHistory(updatedHistory);
+                localStorage.setItem('brewbros_orders', JSON.stringify(updatedHistory));
+
+                if (supabase) {
+                    try {
+                        const cloudOrder = { ...newOrder, items: JSON.stringify(newOrder.items) };
+                        const { error } = await supabase.from('orders').insert([cloudOrder]);
+                        if (error) {
+                            alert("Failed to save order to Supabase: " + error.message);
+                        }
+                    } catch (err) {
+                        console.error("Cloud order exception:", err);
+                    }
+                }
+
+                setCurrentReceipt(newOrder);
+                setCart([]);
+                setCheckoutOrderType('');
+                setCurrentView('receipt');
+            };
+
+            return (
+                <div className="min-h-screen bg-stone-50 pb-24 sm:pb-12">
+                    {/* Navigation Bar */}
+                    <nav className="bg-white border-b border-stone-200 sticky top-0 z-50 shadow-sm">
+                        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+                            <div className="flex items-center gap-2 cursor-pointer" onClick={() => setCurrentView('menu')}>
+                                <div className="w-10 h-10 bg-amber-800 rounded-xl flex items-center justify-center text-white shadow-inner">
+                                    <IconCoffee size={24} />
+                                </div>
+                                <span className="text-xl font-bold text-amber-950">BrewBros <span className="font-light text-amber-800">Café</span></span>
+                            </div>
+                            <div className="flex items-center gap-2 sm:gap-4">
+                                <button onClick={() => setCurrentView('manage')} className={`p-2 sm:px-4 sm:py-2 rounded-xl flex items-center gap-2 font-medium transition-colors ${currentView === 'manage' ? 'bg-amber-50 text-amber-900' : 'text-stone-600 hover:bg-stone-100'}`}>
+                                    <IconSettings size={20} /><span className="hidden sm:inline">Manage</span>
+                                </button>
+                                <button onClick={() => setCurrentView('history')} className={`p-2 sm:px-4 sm:py-2 rounded-xl flex items-center gap-2 font-medium transition-colors ${currentView === 'history' ? 'bg-amber-50 text-amber-900' : 'text-stone-600 hover:bg-stone-100'}`}>
+                                    <IconHistory size={20} /><span className="hidden sm:inline">History</span>
+                                </button>
+                                <button onClick={() => setCurrentView('cart')} className={`relative p-2 sm:px-4 sm:py-2 rounded-xl flex items-center gap-2 font-medium transition-all ${currentView === 'cart' || currentView === 'checkout' ? 'bg-amber-800 text-white shadow-md' : 'border border-stone-200 text-stone-700 hover:bg-stone-100'}`}>
+                                    <IconShoppingBag size={20} /><span className="hidden sm:inline">Cart</span>
+                                    {getCartItemCount() > 0 && (
+                                        <span className="absolute -top-2 -right-2 w-6 h-6 bg-amber-800 text-white rounded-full text-xs font-bold flex items-center justify-center shadow-sm">
+                                            {getCartItemCount()}
+                                        </span>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </nav>
+
+                    {/* Main Content Area */}
+                    <main className="max-w-6xl mx-auto px-4 py-8">
+                        {/* VIEW: MENU */}
+                        {currentView === 'menu' && (
+                            <div>
+                                <div className="mb-8">
+                                    <h2 className="text-3xl font-bold text-amber-950">Our Menu</h2>
+                                    <p className="text-amber-800/70 mt-1">Handcrafted drinks and fresh pastries.</p>
+                                </div>
+
+                                {['Drinks', 'Food', 'Merchandise'].map(cat => {
+                                    const catProducts = products.filter(p => (p.category || 'Drinks') === cat);
+                                    if (catProducts.length === 0) return null;
+                                    return (
+                                        <div key={cat} className="mb-10">
+                                            <h3 className="text-2xl font-bold text-amber-900 mb-6 border-b-2 border-amber-200/50 pb-2 inline-block">
+                                                {cat === 'Drinks' ? '☕ Drinks & Beverages' : cat === 'Food' ? '🥐 Food & Pastries' : '🛍️ Merchandise'}
+                                            </h3>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                                                {catProducts.map(product => (
+                                                    <div key={product.id} className="bg-white rounded-2xl p-5 shadow-sm border border-stone-100 flex flex-col hover:shadow-md transition-shadow">
+                                                        <div className="bg-stone-50 rounded-xl h-32 flex items-center justify-center text-6xl mb-4 overflow-hidden">
+                                                            {product.imageUrl ? <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" /> : product.emoji}
+                                                        </div>
+                                                        <div className="flex-grow">
+                                                            <div className="flex justify-between items-start mb-1">
+                                                                <h3 className="font-semibold text-lg text-stone-800">{product.name}</h3>
+                                                                <span className="font-bold text-amber-700">₱{Number(product.price).toFixed(2)}</span>
+                                                            </div>
+                                                            <p className="text-sm text-stone-500 mb-4 line-clamp-2">{product.desc}</p>
+                                                        </div>
+                                                        <button onClick={() => addToCart(product)} className="w-full py-2.5 bg-amber-800 hover:bg-amber-900 text-white rounded-xl font-medium flex items-center justify-center gap-2 transition-colors">
+                                                            <IconPlus size={18} /> Add to Cart
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        {/* VIEW: CART */}
+                        {currentView === 'cart' && (
+                            <div className="max-w-3xl mx-auto">
+                                <button onClick={() => setCurrentView('menu')} className="flex items-center text-amber-800 hover:text-amber-950 mb-6 font-medium">
+                                    <IconChevronLeft size={20} /> Back to Menu
+                                </button>
+                                <h2 className="text-3xl font-bold text-amber-950 mb-6">Your Cart</h2>
+                                {cart.length === 0 ? (
+                                    <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-stone-100">
+                                        <IconShoppingBag size={48} className="mx-auto text-stone-300 mb-4" />
+                                        <h3 className="text-xl font-medium text-stone-700 mb-2">Your cart is empty</h3>
+                                        <p className="text-stone-500 mb-6">Add delicious items from the menu to get started.</p>
+                                        <button onClick={() => setCurrentView('menu')} className="px-6 py-2.5 bg-amber-800 text-white rounded-xl font-medium">Browse Menu</button>
+                                    </div>
+                                ) : (
+                                    <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-6">
+                                        {cart.map((item, index) => (
+                                            <div key={item.id} className={`flex items-center justify-between py-4 gap-4 ${index !== cart.length - 1 ? 'border-b border-stone-100' : ''}`}>
+                                                <div className="flex items-center gap-3 min-w-0 flex-1">
+                                                    <div className="w-12 h-12 bg-stone-50 rounded-lg flex items-center justify-center text-2xl shrink-0 overflow-hidden">
+                                                        {item.imageUrl ? <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" /> : (item.emoji || '☕')}
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <h4 className="font-semibold text-stone-800 truncate">{item.name}</h4>
+                                                        <p className="text-amber-700 font-medium">₱{Number(item.price).toFixed(2)}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-3 bg-stone-50 rounded-lg p-1 shrink-0">
+                                                    <button onClick={() => updateQuantity(item.id, -1)} className="p-1 hover:bg-white rounded text-stone-600"><IconMinus size={16} /></button>
+                                                    <span className="w-6 text-center font-medium">{item.quantity}</span>
+                                                    <button onClick={() => updateQuantity(item.id, 1)} className="p-1 hover:bg-white rounded text-stone-600"><IconPlus size={16} /></button>
+                                                </div>
+                                                <button onClick={() => removeFromCart(item.id)} className="text-red-400 hover:text-red-600 p-2 shrink-0"><IconTrash size={20} /></button>
+                                            </div>
+                                        ))}
+                                        <div className="mt-6 pt-6 border-t border-stone-100 flex flex-col sm:flex-row justify-between items-center gap-4">
+                                            <div>
+                                                <p className="text-stone-500 text-sm">Subtotal</p>
+                                                <p className="text-2xl font-bold text-amber-950">₱{getCartTotal().toFixed(2)}</p>
+                                            </div>
+                                            <button onClick={() => setCurrentView('checkout')} className="w-full sm:w-auto px-8 py-3 bg-amber-800 hover:bg-amber-900 text-white rounded-xl font-medium shadow-sm">
+                                                Proceed to Checkout
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* VIEW: CHECKOUT */}
+                        {currentView === 'checkout' && (
+                            <div className="max-w-2xl mx-auto">
+                                <button onClick={() => setCurrentView('cart')} className="flex items-center text-amber-800 mb-6 font-medium">
+                                    <IconChevronLeft size={20} /> Back to Cart
+                                </button>
+                                <h2 className="text-3xl font-bold text-amber-950 mb-6">Checkout</h2>
+                                <form onSubmit={handleCheckoutSubmit} className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-stone-100 space-y-6">
+                                    <div>
+                                        <label className="block text-sm font-medium text-stone-700 mb-1">Your Name *</label>
+                                        <input type="text" name="customerName" required className="w-full px-4 py-2 border border-stone-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-500" placeholder="John Doe" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-stone-700 mb-1">Order Type *</label>
+                                        <div className="flex gap-6">
+                                            <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="orderType" value="Dine In" required onChange={e => setCheckoutOrderType(e.target.value)} className="w-4 h-4 text-amber-600" /> Dine In</label>
+                                            <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="orderType" value="Take Out" required onChange={e => setCheckoutOrderType(e.target.value)} className="w-4 h-4 text-amber-600" /> Take Out</label>
+                                        </div>
+                                    </div>
+                                    {checkoutOrderType === 'Dine In' && (
+                                        <div>
+                                            <label className="block text-sm font-medium text-stone-700 mb-1">Table Number *</label>
+                                            <select name="deliveryLocation" required className="w-full px-4 py-2 border border-stone-200 rounded-xl bg-white outline-none">
+                                                <option value="">Select table...</option>
+                                                {[1,2,3,4,5,6,7,8,9,10].map(n => <option key={n} value={`Table ${n}`}>Table {n}</option>)}
+                                            </select>
+                                        </div>
+                                    )}
+                                    {checkoutOrderType === 'Take Out' && (
+                                        <div>
+                                            <label className="block text-sm font-medium text-stone-700 mb-1">Delivery Address *</label>
+                                            <textarea name="deliveryLocation" required rows="3" className="w-full px-4 py-2 border border-stone-200 rounded-xl outline-none" placeholder="Enter your full address"></textarea>
+                                        </div>
+                                    )}
+                                    <div>
+                                        <label className="block text-sm font-medium text-stone-700 mb-1">Payment Method *</label>
+                                        <select name="paymentMethod" required className="w-full px-4 py-2 border border-stone-200 rounded-xl bg-white outline-none">
+                                            <option value="Cash">Cash</option>
+                                            <option value="Credit Card">Credit Card</option>
+                                            <option value="GCash">GCash</option>
+                                        </select>
+                                    </div>
+                                    <div className="pt-4 border-t border-stone-100 flex justify-between items-center">
+                                        <span className="text-xl font-bold text-stone-800">Total: ₱{getCartTotal().toFixed(2)}</span>
+                                        <button type="submit" className="px-8 py-3 bg-amber-800 hover:bg-amber-900 text-white rounded-xl font-medium shadow-sm">Place Order</button>
+                                    </div>
+                                </form>
+                            </div>
+                        )}
+
+                        {/* VIEW: RECEIPT */}
+                        {currentView === 'receipt' && currentReceipt && (
+                            <div className="max-w-md mx-auto bg-white rounded-3xl p-8 shadow-sm border border-stone-100 text-center">
+                                <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <IconCheck size={32} />
+                                </div>
+                                <h2 className="text-2xl font-bold text-amber-950 mb-1">Order Confirmed!</h2>
+                                <p className="text-stone-500 mb-6">Thank you, {currentReceipt.customerName}.</p>
+                                <div className="bg-stone-50 rounded-2xl p-6 text-left mb-6 space-y-2">
+                                    <div className="flex justify-between text-sm"><span className="text-stone-500">Reference:</span><span className="font-semibold">{currentReceipt.id}</span></div>
+                                    <div className="flex justify-between text-sm"><span className="text-stone-500">Type:</span><span className="font-semibold">{currentReceipt.orderType}</span></div>
+                                    <div className="flex justify-between text-sm"><span className="text-stone-500">Location:</span><span className="font-semibold">{currentReceipt.deliveryLocation}</span></div>
+                                    <div className="flex justify-between text-sm pt-2 border-t border-stone-200 font-bold text-amber-900 text-base"><span>Total Paid:</span><span>₱{Number(currentReceipt.total).toFixed(2)}</span></div>
+                                </div>
+                                <button onClick={() => setCurrentView('menu')} className="w-full py-3 bg-amber-800 text-white rounded-xl font-medium">Back to Menu</button>
+                            </div>
+                        )}
+
+                        {/* VIEW: HISTORY */}
+                        {currentView === 'history' && (
+                            <div className="max-w-3xl mx-auto">
+                                <div className="flex justify-between items-center mb-6">
+                                    <h2 className="text-3xl font-bold text-amber-950">Order History</h2>
+                                    {orderHistory.length > 0 && (
+                                        <button 
+                                            onClick={() => {
+                                                setOrderHistory([]);
+                                                localStorage.removeItem('brewbros_orders');
+                                            }}
+                                            className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl font-medium text-sm transition-colors flex items-center gap-2"
+                                        >
+                                            <IconTrash size={16} /> Clear History
+                                        </button>
+                                    )}
+                                </div>
+                                {orderHistory.length === 0 ? (
+                                    <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-stone-100">
+                                        <p className="text-stone-500">No past orders yet.</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {orderHistory.map(o => {
+                                            const parsedItems = typeof o.items === 'string' ? JSON.parse(o.items) : o.items;
+                                            return (
+                                            <div key={o.id} className="bg-white rounded-2xl p-6 shadow-sm border border-stone-100 space-y-4">
+                                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-100 pb-3">
+                                                    <div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-bold text-lg text-stone-800">{o.id}</span>
+                                                            <span className="px-2.5 py-0.5 bg-amber-100 text-amber-800 text-xs rounded-full font-medium">{o.orderType}</span>
+                                                        </div>
+                                                        <p className="text-sm text-stone-500 mt-1">{o.customerName} • {o.date}</p>
+                                                    </div>
+                                                    <div className="text-left sm:text-right">
+                                                        <span className="text-xs text-stone-400 block">Payment: {o.paymentMethod}</span>
+                                                        <p className="text-xl font-bold text-amber-950">₱{Number(o.total).toFixed(2)}</p>
+                                                    </div>
+                                                </div>
+
+                                                {/* Full Itemized Details List */}
+                                                <div className="bg-stone-50 rounded-xl p-4 space-y-2">
+                                                    <p className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">Ordered Items:</p>
+                                                    {parsedItems.map((item, idx) => (
+                                                        <div key={idx} className="flex justify-between items-center text-sm">
+                                                            <span className="text-stone-700 font-medium">
+                                                                {item.quantity}x {item.name} <span className="text-xs text-stone-400">({item.category || 'Drinks'})</span>
+                                                            </span>
+                                                            <span className="text-stone-800 font-semibold">₱{(item.price * item.quantity).toFixed(2)}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+
+                                                <div className="text-xs text-stone-500 pt-1 flex items-center justify-between">
+                                                    <span>{o.orderType === 'Dine In' ? '📍 Table Location:' : '📍 Delivery Address:'} <strong className="text-stone-700">{o.deliveryLocation}</strong></span>
+                                                </div>
+                                            </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* VIEW: MANAGE (ADD & DELETE PRODUCTS) */}
+                        {currentView === 'manage' && (
+                            <div className="max-w-2xl mx-auto">
+                                <button onClick={() => setCurrentView('menu')} className="flex items-center text-amber-800 mb-6 font-medium">
+                                    <IconChevronLeft size={20} /> Back to Menu
+                                </button>
+                                <form onSubmit={handleAddProduct} className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-stone-100 space-y-5 mb-10">
+                                    <h3 className="text-xl font-bold text-stone-800 border-b border-stone-100 pb-3">Add New Product</h3>
+                                    <div>
+                                        <label className="block text-sm font-medium text-stone-700 mb-1">Product Name *</label>
+                                        <input type="text" name="productName" required className="w-full px-4 py-2 border border-stone-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-500" placeholder="e.g. Matcha Latte" />
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-stone-700 mb-1">Category *</label>
+                                            <select name="category" required className="w-full px-4 py-2 border border-stone-200 rounded-xl bg-white outline-none">
+                                                <option value="Drinks">Drinks</option>
+                                                <option value="Food">Food</option>
+                                                <option value="Merchandise">Merchandise</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-stone-700 mb-1">Price (₱) *</label>
+                                            <input type="number" step="0.01" name="price" required className="w-full px-4 py-2 border border-stone-200 rounded-xl outline-none" placeholder="150.00" />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-stone-700 mb-1">Description *</label>
+                                        <textarea name="description" required rows="2" className="w-full px-4 py-2 border border-stone-200 rounded-xl outline-none" placeholder="Short description..."></textarea>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-stone-700 mb-1">Image URL (Optional)</label>
+                                        <input type="url" name="imageUrl" className="w-full px-4 py-2 border border-stone-200 rounded-xl outline-none" placeholder="https://..." />
+                                    </div>
+                                    <button type="submit" className="w-full py-3 bg-amber-800 hover:bg-amber-900 text-white rounded-xl font-medium shadow-sm">
+                                        Add Product to Menu
+                                    </button>
+                                </form>
+
+                                {/* Delete Products Section */}
+                                <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden">
+                                    <div className="p-6 border-b border-stone-100">
+                                        <h3 className="text-xl font-bold text-stone-800">Current Menu Items (Delete)</h3>
+                                    </div>
+                                    <div className="divide-y divide-stone-100">
+                                        {products.map(p => (
+                                            <div key={p.id} className="p-4 flex items-center justify-between hover:bg-stone-50">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 bg-stone-100 rounded-lg flex items-center justify-center text-xl">{p.emoji || '☕'}</div>
+                                                    <div>
+                                                        <h4 className="font-semibold text-stone-800">{p.name}</h4>
+                                                        <p className="text-xs text-stone-500">{p.category} • ₱{Number(p.price).toFixed(2)}</p>
+                                                    </div>
+                                                </div>
+                                                <button onClick={() => setProductToDelete(p.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
+                                                    <IconTrash size={18} />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </main>
+
+                    {/* Delete Confirmation Modal */}
+                    {productToDelete !== null && (
+                        <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                            <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl text-center">
+                                <h3 className="text-xl font-bold text-stone-800 mb-2">Delete Product?</h3>
+                                <p className="text-stone-500 mb-6 text-sm">Are you sure you want to remove this item from the menu?</p>
+                                <div className="flex gap-3">
+                                    <button onClick={() => setProductToDelete(null)} className="flex-1 py-2.5 bg-stone-100 text-stone-700 rounded-xl font-medium">Cancel</button>
+                                    <button onClick={confirmDeleteProduct} className="flex-1 py-2.5 bg-red-600 text-white rounded-xl font-medium">Delete</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Mobile Bottom Sticky Bar */}
+                    {getCartItemCount() > 0 && currentView === 'menu' && (
+                        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-stone-200 shadow-lg sm:hidden z-40">
+                            <button onClick={() => setCurrentView('cart')} className="w-full py-3.5 bg-amber-800 text-white rounded-xl font-bold flex justify-between items-center px-6 shadow-sm">
+                                <div className="flex items-center gap-2">
+                                    <IconShoppingBag size={20} />
+                                    <span>{getCartItemCount()} items</span>
+                                </div>
+                                <span>Checkout • ₱{getCartTotal().toFixed(2)}</span>
+                            </button>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<BrewBrosApp />);
+    </script>
+</body>
+</html>
